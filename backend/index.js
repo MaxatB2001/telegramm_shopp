@@ -10,9 +10,10 @@ const Category = require("./models/category.model");
 const Cart = require("./models/cart.model");
 const Order = require("./models/order.mkdel");
 const ShopReview = require("./models/shopReview.model");
+const User = require("./models/User.model");
 const token = "6010021020:AAGDrMwHEe_8Y0O7XJxpfWo2hyHnRBHcFW4";
-const url = "https://d56e-85-140-4-5.ngrok-free.app";
-const backUrl  ="https://b9e7-85-140-4-5.ngrok-free.app"
+const url = "https://8624-95-105-69-54.ngrok-free.app";
+const backUrl  ="https://2f97-95-105-69-54.ngrok-free.app"
 const bot = new TelegramBot(token, { polling: true });
 
 function numberWithSpaces(nr) {
@@ -99,10 +100,14 @@ ${r.body}`)
   }
 
   if (text == "Профиль 🙋") {
+    let user = await User.findOne({name: msg.from.first_name})
+    if (!user) {
+      user = await User.create({name: msg.from.first_name})
+    } 
     await bot.sendMessage(chatId, `
-    Имя: Альберт
-Телефон: +79179166659
-Адрес доставки: г. Казань ул Рихрда Зорге 32 к.2 кв 58`,
+    Имя: ${user.name}
+Телефон: +${user.phone}
+Адрес доставки: ${user.adress}`,
 {
   reply_markup: {
     inline_keyboard: [[{ text: "История заказов ⭐", callback_data: "orders" }]],
@@ -187,6 +192,10 @@ ${r.body}`)
   }
 
   if (text == "Телефон 📞") {
+    let user = await User.findOne({name: msg.from.first_name})
+    if (!user) {
+      user = await User.create({name: msg.from.first_name})
+    } 
     const phoneNumber = await bot.sendMessage(
       msg.chat.id,
       "Ваш номер телефона",
@@ -198,12 +207,17 @@ ${r.body}`)
     );
     bot.onReplyToMessage(msg.chat.id, phoneNumber.message_id, async (phoneMsg) => {
       const phone = phoneMsg.text;
-      // save name in DB if you want to ...
+      user.phone = phone
+      await user.save()
       await bot.sendMessage(msg.chat.id, `ваш телефон успешно сохранён ${phone}!`);
   });
   }
 
   if (text == "Адрес 🏡") {
+    let user = await User.findOne({name: msg.from.first_name})
+    if (!user) {
+      user = await User.create({name: msg.from.first_name})
+    } 
     const adressNumber = await bot.sendMessage(
       msg.chat.id,
       "Ваш адрес",
@@ -215,12 +229,17 @@ ${r.body}`)
     );
     bot.onReplyToMessage(msg.chat.id, adressNumber.message_id, async (adressMsg) => {
       const adress = adressMsg.text;
-      // save name in DB if you want to ...
+      user.adress = adress
+      await user.save()
       await bot.sendMessage(msg.chat.id, `ваш адрес успешно сохранён ${adress}!`);
   });
   }
 
   if (text == "Имя 😃") {
+    let user = await User.findOne({name: msg.from.first_name})
+    if (!user) {
+      user = await User.create({name: msg.from.first_name})
+    } 
     const namePrompt = await bot.sendMessage(
       msg.chat.id,
       "Ваше имя ?",
@@ -232,26 +251,28 @@ ${r.body}`)
     );
     bot.onReplyToMessage(msg.chat.id, namePrompt.message_id, async (nameMsg) => {
       const name = nameMsg.text;
-      // save name in DB if you want to ...
+      user.name = name
+      await user.save()
       await bot.sendMessage(msg.chat.id, `Ваше имя ${name}!`);
   });
   }
 
   bot.on("callback_query", async (msg) => { 
-    console.log(msg.data)
+    
     if (msg.data === "orders") {
       let orders = await Order.find({userName: msg.from.first_name}).populate("items");
       await bot.sendMessage(chatId, "Ваши заказы")
-      orders.forEach(o => {
-        bot.sendMessage(chatId, `номер заказа ${o._id}`)
-        o.items.forEach(oi => {
-          bot.sendPhoto(chatId, `${backUrl}/${oi.picture}`, {
+      for (let o of orders) {
+        await  bot.sendMessage(chatId, `номер заказа ${o._id}`)
+        for (let oi of o.items) {
+          await bot.sendPhoto(chatId, `${backUrl}/${oi.picture}`, {
             caption: `${oi.name} 
 Цена: ${numberWithSpaces(oi.cost)} ₽
 Размер: S`,
           })
-        })
-      })
+        }
+      }
+
     } else if (msg.data === "offer") {
       let cart = await Cart.findOne({ userName: msg.from.first_name }).populate(
         "items"
